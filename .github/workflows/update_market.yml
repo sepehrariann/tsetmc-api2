@@ -1,0 +1,43 @@
+name: Update Market Data
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # هر 5 دقیقه اجرا میشه
+  workflow_dispatch:        # اجازه اجرای دستی هم میده
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run script and save JSON
+        run: |
+          python - <<'EOF'
+          import json
+          from TSEDataGetter import market_fetcher
+
+          df = market_fetcher()
+          data = df.to_dict(orient="records")
+
+          with open("market.json", "w", encoding="utf-8") as f:
+              json.dump(data, f, ensure_ascii=False, indent=2)
+          EOF
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add market.json
+          git commit -m "Update market data [skip ci]" || echo "No changes"
+          git push
